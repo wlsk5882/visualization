@@ -1,0 +1,101 @@
+---
+title: "Data Manipulation"
+output: html_document
+---
+
+
+
+
+# 1. tract_noDuplicate dataframe
+Some tracts' data are represented in two rows. So, here I'm merging splited data in to one row for each duplicated tract.
+
+```{r}
+library(plyr) 
+tract<- readRDS("data/tract_newLabel.Rda")
+
+a <- count(tract,var=c("State_name","County_name", "GIDTR"))
+  
+  duplicated<-a[which(a$freq!=1),]
+  duplicated.gidtr<-(a[which(a$freq!=1),])[,"GIDTR"]
+  
+  b<-tract[tract$GIDTR %in% duplicated.gidtr,]
+  head(b)
+  
+  b.agg<-NULL
+  b.agg<-as.data.frame(
+    aggregate(b
+              , by=list(b$GIDTR)
+              , FUN=  function(x){ifelse(is.numeric(x), mean(x,na.rm=TRUE), as.character(x))}
+              )
+    )
+  
+rm.dp <- tract[-which(tract$GIDTR %in% duplicated.gidtr),]
+nrow(tract)
+nrow(rm.dp)
+
+tract_noDuplicate <- as.data.frame(rbind(rm.dp[,-1],b.agg[,-c(1,2)]))
+
+head(rm.dp)
+head(tract_noDuplicate)
+
+class(tract_noDuplicate)
+str(tract_noDuplicate)
+
+
+# check
+a.1 <- count(tract_noDuplicate,var=c("State_name","County_name", "GIDTR"))
+  
+  duplicated<-a[which(a.1$freq!=1),]
+
+
+  save(tract_noDuplicate, file="data/tract_noDuplicate.Rda")
+
+```
+
+## varialbe names
+
+```{r}
+
+vars<-c("Income", "Med_House_val", "pct_Males", "pct_Pop_5_17","pct_Pop_18_24"
+         , "pct_Pop_25_44", "pct_Pop_45_64", "pct_Pop_65plus", "pct_Hispanic"
+         , "pct_NH_White_alone", "pct_NH_Blk_alone", "pct_Not_HS_Grad", "pct_College"
+         , "pct_Prs_Blw_Pov_Lev", "pct_Diff_HU_1yr_Ago", "pct_MrdCple_HHD"
+         , "pct_Female_No_HB", "pct_Sngl_Prns_HHD", "avg_Tot_Prns_in_HHD", "pct_Rel_Under_6"
+         , "pct_Vacant_Units", "pct_Renter_Occp_HU", "pct_Single_Unit", "Population", "LAND_AREA"
+         , "density" )
+
+s
+```
+
+
+
+#2. state dataframe
+
+```{r}
+  
+library(plyr)
+load("data/tract_noDuplicate.Rda")
+tract<- tract_noDuplicate
+
+cntCountyTract <- as.data.frame(count(tract,var=c("State_name","County_name")))
+  
+  state<-names(table(cntCountyTract$State_name))
+  NumberOfCounty<-as.data.frame(table(cntCountyTract$State_name))[,2]
+  NumberOfTract <- as.data.frame(count(tract,var=c("State_name")))[,2]
+  Population <- aggregate(tract$Population, by=list(tract$State_name), FUN = sum, na.rm=TRUE)[,2]
+  meanRate <- aggregate(tract$ReturnRate, by=list(tract$State_name), FUN = mean, na.rm=TRUE)[,2]
+    meanRate<-round(meanRate,2)
+  medianRate <- aggregate(tract$ReturnRate, by=list(tract$State_name), FUN = median, na.rm=TRUE)[,2]
+  maxRate <- aggregate(tract$ReturnRate, by=list(tract$State_name), FUN = max, na.rm=TRUE)[,2]
+  minRate <- aggregate(tract$ReturnRate, by=list(tract$State_name), FUN = min, na.rm=TRUE)[,2]
+  
+  
+summaryByState <- data.frame(state,NumberOfCounty,NumberOfTract,Population,meanRate,medianRate,maxRate,minRate)
+state_sorted<- (summaryByState[order(-summaryByState$medianRate),])$state
+
+
+save(summaryByState,file="data/summaryByState.Rda")      
+  
+```
+
+
