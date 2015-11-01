@@ -5,8 +5,16 @@ shinyUI(
     ,fluidRow(
       #h2("Introduction", style = "color:#3182bd"),
       br()
-      ,p("This document is visualizing 2010 data census return rate status and correlation among return rate and demographic factors. It would be used to identify regions or demographic groups for promotions improving mail return rate."
-         #,align = 'center'
+      ,p("This document is visualizing 2010 US census return rate status and correlations among the return rate and
+         demographic factors."
+         ,align = 'center'
+         )
+      ,p("This would be useful to identify regions or demographic groups for promotions
+         improving mail return rate."
+         ,align = 'center'
+        )
+      ,p("Individual data points represents average of each tract."
+         ,align = 'center'
          )
 
       ,h2("Mail Return Rate and summary by each state", style = "color:#3182bd")
