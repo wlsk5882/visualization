@@ -1,0 +1,314 @@
+---
+title: "721_p1_jinalee"
+author: "Jina Lee"
+date: "October 4, 2015"
+output: html_document
+---
+
+Attribute Selecition & Simplify column names
+```{r}
+tract.extracted<-read.csv("tract_extracted.csv")
+
+# change column name of population: "Tot_Population_ACS_09_13" -> "Population"
+
+var <-colnames(tract.extracted)
+newColnames <- c("X", "GIDTR", "State", "State_name", "County", "County_name", "Tract", "Income", "Med_House_val", "ReturnRate", "pct_Males", "pct_Pop_5_17", "pct_Pop_18_24","pct_Pop_25_44", "pct_Pop_45_64", "pct_Pop_65plus", "pct_Hispanic", "pct_NH_White_alone", "pct_NH_Blk_alone", "pct_Not_HS_Grad",  "pct_College", "pct_Prs_Blw_Pov_Lev", "pct_Diff_HU_1yr_Ago", "pct_MrdCple_HHD", "pct_Female_No_HB", "pct_Sngl_Prns_HHD", "avg_Tot_Prns_in_HHD",  "pct_Rel_Under_6", "pct_Vacant_Units", "pct_Renter_Occp_HU", "pct_Single_Unit", "Population", "LAND_AREA", "density")
+
+#colnames(tract.extracted)[grep("Tot_Population_ACS_09_13",colnames(tract.extracted))] <- "Population"
+colnames(tract.extracted) <- newColnames
+sapply(tract.extracted,mode)
+
+attach(tract.extracted)
+
+tract.extracted<-transform(tract.extracted,Income=as.numeric(Income)/1000)
+
+attach(tract.extracted)
+
+```
+
+Data Preprocessing
+```{r}
+#races
+tract.extracted$pct_Hispanic_f <- cut(pct_Hispanic, breaks = c(0,50,75,100))
+tract.extracted$pct_NH_White_alone_f <- cut(pct_NH_White_alone, breaks = c(0,50,75,100))
+tract.extracted$pct_NH_Blk_alone_f <- cut(pct_NH_Blk_alone, breaks = c(0,50,75,100))
+
+var_races<-as.factor(c("pct_Hispanic_f","pct_NH_White_alone_f","pct_NH_Blk_alone_f"))
+
+# by ages
+tract.extracted$pct_Pop_5_17_f <- cut(pct_Pop_5_17, breaks = c(0,50,75,100))
+tract.extracted$pct_Pop_18_24_f <- cut(pct_Pop_18_24, breaks = c(0,50,75,100))
+tract.extracted$pct_Pop_25_44_f <- cut(pct_Pop_25_44, breaks = c(0,50,75,100))
+tract.extracted$pct_Pop_45_64_f <- cut(pct_Pop_45_64, breaks = c(0,50,75,100))
+tract.extracted$pct_Pop_65plus_f <- cut(pct_Pop_65plus, breaks = c(0,50,75,100))
+
+# by single,married
+tract.extracted$pct_MrdCple_HHD_f <- cut(pct_MrdCple_HHD, breaks = c(0,50,75,100))
+tract.extracted$pct_Female_No_HB_f <- cut(pct_Female_No_HB, breaks = c(0,50,75,100))
+tract.extracted$pct_Sngl_Prns_HHD_f <- cut(pct_Sngl_Prns_HHD, breaks = c(0,50,75,100))
+
+
+# by education
+tract.extracted$pct_Not_HS_Grad_f <- cut(pct_Not_HS_Grad, breaks = c(0,50,75,100))
+tract.extracted$pct_College_f <- cut(pct_College, breaks = c(0,50,75,100))
+
+# density
+tract.extracted$density_f<-cut(density,c(quantile(density,na.rm=TRUE)))
+
+Population_byState <- as.data.frame(tapply(tract.extracted$Population,State_name,sum, na.rm=TRUE))
+LAND_AREA_byState<-as.data.frame(tapply(tract.extracted$LAND_AREA, State_name,sum, na.rm=TRUE))
+density_byState <- as.data.frame(Population_byState/LAND_AREA_byState)
+colnames(density_byState)<- "density_byState"
+state<-rownames(density_byState)
+
+density_byState_f <- cut(density_byState$density_byState, breaks=quantile(density_byState, na.rm=TRUE))
+
+byState <- data.frame(state,Population_byState, LAND_AREA_byState, density_byState, density_byState_f)
+colnames(byState)<- c("State","Population_byState","LAND_AREA_byState","density_byState", "density_byState_f")
+
+
+attach(tract.extracted)
+```
+
+Mail Return Rate Summary
+```{r}
+summary(ReturnRate)
+```
+
+
+# Plot 0: Mail Return Rate Distribution
+median will be added.
+```{r}
+library(ggplot2)
+library(scales)
+library(RColorBrewer)
+
+#pdf("p0.pdf", useDingbats=F)
+p0 <- ggplot(data=tract.extracted
+             ,aes(x=ReturnRate)
+             )+
+  geom_density(stat='density', position='identity')+
+  coord_cartesian()
+ 
+p0 + geom_vline(xintercept = median(ReturnRate,na.rm=TRUE)
+               , stat = "vline"
+               , position = "identity"
+               , color = 'red'
+               , show_guide = FALSE)
+
+ median(ReturnRate,na.rm=TRUE)
+
+# dev.off()
+```
+
+# 1. Overall, by State
+Descended Sorting a order of states by return rate
+```{r}
+rm(byState.median)
+byState.median <-as.data.frame(tapply(ReturnRate,State_name, median, na.rm=TRUE))
+colnames(byState.median)<- c("medReturnRate")
+attach(byState.median)
+
+byState.median<-byState.median[order(-medReturnRate),]
+State_sorted<-rownames(byState.median)
+
+
+```
+
+## 1.1: Population by States
+
+Population by States
+!!! color by density will be added
+```{r}
+#pdf("p1_1.pdf")
+
+p1.1 <- ggplot(data = byState
+               , aes(x= factor(state, levels=State_sorted)
+                     , y= Population_byState
+                     , fill = factor(density_byState_f)
+                     )
+               )+
+  geom_bar(stat="identity"
+          , na.rm=TRUE)+
+  coord_cartesian()+
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size= rel(1)))+
+  scale_fill_brewer()+
+  coord_flip()+
+  scale_y_reverse()
+
+print(p1.1)
+
+
+#dev.off()
+
+#############################
+
+
+```
+
+
+
+## 1.2: Return Rate by States
+setting data for a plot
+```{r}
+# pdf("p1_2.pdf")
+p1.2<- ggplot(data=tract.extracted
+            , aes(x=factor(State_name, levels=State_sorted)                                       , y=ReturnRate)
+                  )
+
+## creating box plot
+bp <- p1.2+geom_boxplot(stat = "boxplot"
+                , position = "dodge"
+                , outlier.colour = "black"
+                , outlier.shape = 16
+                , outlier.size = 2
+                , notch = FALSE
+                , notchwidth = 0.5) +
+  xlab("State")+
+  ylab("Mail Return Rate (%)")+
+  ylim(30,100)+
+  ggtitle("Mail Return Rate by State")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+##add horizontal line of median return rate
+
+bp+ geom_hline(yintercept = median(ReturnRate,na.rm=TRUE)
+               , stat = "hline"
+               , position = "identity"
+               , color = 'red'
+               , show_guide = FALSE)+
+  coord_flip()
+# dev.off()
+```
+
+
+# Correlation of Return Rate and other variables
+
+function for drawing and save graphs of relationship between two variables
+```{r}
+
+drawGraph <- function(x_var, y_var, plotname){
+  #pdf(paste(plotname,"_1.pdf"))
+    p1<- qplot( x= x_var
+                , y=y_var
+                , geom='boxplot')
+    p1<-p1+
+      geom_hline(yintercept = median(y_var,na.rm=TRUE)
+                 , stat = "hline"
+                 , position = "identity"
+                 , color = 'red'
+                 , show_guide = FALSE
+                 )
+    p1<- p1+ labs(list(title = paste("Return Rate by",plotname)
+                       , x = paste("Percentage of",plotname)
+                       , y = "Mail Return Rate"
+                       )
+                  )
+    
+    print(p1)
+  #dev.off()
+  
+  #pdf(paste(plotname,"_2.pdf"))
+    p2 <- qplot(x = x_var
+              , geom="histogram")
+    p2<-p2 +
+      scale_y_reverse()+
+      labs(x = paste("Percentage of",plotname))
+                
+    print(p2)
+  #dev.off()
+    
+return("completed")
+}
+```
+
+##2. Income
+```{r}
+
+##na : null
+medIncome.quant <- quantile(Income, na.rm=TRUE) #converted into (thousand) 
+tract.extracted$IncomeQuant<-cut(Income, breaks = medIncome.quant)
+attach(tract.extracted)
+
+drawGraph(x_var=IncomeQuant,y_var=ReturnRate,"Income")
+```
+
+
+
+## 3. race vs returnRate
+
+```{r}
+
+#hispanic
+drawGraph(x_var=pct_Hispanic_f,y_var=ReturnRate,"Hispanic")
+
+#white
+drawGraph(x_var=pct_NH_White_alone_f,y_var=ReturnRate,"White")
+
+#black
+drawGraph(x_var=pct_NH_Blk_alone_f,y_var=ReturnRate,"Black")
+
+```
+
+
+## 4. by Age
+```{r}
+
+
+# 1 pct_Pop_5_17
+
+drawGraph(x_var=pct_Pop_5_17_f,y_var=ReturnRate,"5_17 years_old")
+
+
+#2 pct_Pop_18_24
+drawGraph(x_var=pct_Pop_18_24_f,y_var=ReturnRate,"18_24 years old")
+
+
+#3 pct_Pop_25_44
+drawGraph(x_var=pct_Pop_25_44_f,y_var=ReturnRate,"25_44 years old")
+
+
+#4 pct_Pop_45_64
+drawGraph(x_var=pct_Pop_45_64_f,y_var=ReturnRate,"45_64 years old")
+
+
+#5 pct_Pop_65plus
+drawGraph(x_var=pct_Pop_65plus_f,y_var=ReturnRate,"65plus years old")
+
+```
+
+
+
+##5. Single or Married
+
+```{r}
+
+#Married Couple
+drawGraph(x_var=pct_MrdCple_HHD_f,y_var=ReturnRate,"Married Couple")
+
+
+#Single Person
+drawGraph(x_var=pct_Sngl_Prns_HHD_f,y_var=ReturnRate,"Single Person")
+
+#Female No Husband
+drawGraph(x_var=pct_Female_No_HB_f,y_var=ReturnRate,"Female without Husband")
+
+
+```
+
+
+
+##6.Education
+
+```{r}
+
+# No Highschool Graduate rate
+drawGraph(x_var=pct_Not_HS_Grad_f,y_var=ReturnRate,"No Highschool Graduate")
+
+# College percentage
+drawGraph(x_var=pct_College_f,y_var=ReturnRate," College Graduate")
+
+dev.off()
+```
+

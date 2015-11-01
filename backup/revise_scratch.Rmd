@@ -1,0 +1,221 @@
+---
+title: "pr2_revise"
+author: "Jina Lee"
+date: "October 14, 2015"
+output: html_document
+---
+
+environment/data setting
+```{r}
+library(shiny)
+library(ggplot2)
+library(rgdal)
+library(plyr)
+
+load("data/tract_noDuplicate.Rda")
+load("data/state.Rda")
+
+attach(tract)
+attach(state)
+```
+
+
+ggplot local value issue.. doesn't recognize input values from ui
+http://stackoverflow.com/questions/19531729/shiny-fill-value-not-passed-to-ggplot-correctly-in-shiny-server-error-object
+
+```{r}
+p <- p+
+        #geom_point(alpha=.5,col=clr[i], aes(x=tract[,input$ages], y=tract$ReturnRate))+
+      geom_point(alpha=.5,col=clr[i], aes(x=input$ages, y=ReturnRate))+  
+      xlim(rng) #rng<-c(50,100)
+      
+      if(input$smooth==TRUE){
+        p<- p+geom_smooth(col=clr[i], aes(x=tract[,input$ages],y=tract$ReturnRate))
+      }
+        
+      print("xVars[i] before") 
+      print(paste("i: ",i))
+      print(xVars[i])
+      print("after xVars[i]")
+      
+      print(p)
+```
+
+
+
+# corr function
+```{r}
+#plot<-p ; i=1+i
+    draw.points <- function(x, y, plot, clr_i){
+      plot <- plot+ geom_point(aes(x=tract[,x], y= tract[,y]), col = clr[clr_i], alpha = .2)
+      plot
+      return (plot)
+    }
+    
+    draw.smooth <- function(x, y, plot, clr_i){
+      p<- plot+geom_smooth(aes(x=tract[,x], y= tract[,y]), col = clr[clr_i], alpha = .2)
+      return (p)
+    }
+
+```
+
+
+
+# Row 1
+```{r}
+
+order.rRate<-order(state$ReturnRate)
+order.pop<-order(state$population)
+
+state_byRrate<-state[order.rRate,]
+order<-state_byRrate$state_name
+
+p1<- qplot(x= factor(tract$State_name, levels=order)
+           , y= ReturnRate
+           , data= tract
+           )+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle=90))+
+  xlab("State")+
+  ylab("Return Rate(%)")
+
+p1
+summary(Tract)
+
+```
+
+reorder(x, ...) :a generic function. The "default" method treats its first argument as a categorical variable, and reorders its levels based on the values of a second variable, usually numeric.
+```{r}
+bymedian <- with(InsectSprays, reorder(spray, count, median))
+boxplot(count ~ bymedian, data = InsectSprays,
+        xlab = "Type of spray", ylab = "Insect count",
+        main = "InsectSprays data", varwidth = TRUE,
+        col = "lightgray")
+```
+
+
+# optoin 1. densed plot by color
+```{r}
+
+clr2 <- c("#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6",
+         "#6a3d9a","#ffff99","#b15928")
+clr<- c("#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9")
+
+
+ggplot(data=tract)+
+  geom_point(aes(x=tract$pct_Pop_18_24,y=ReturnRate, col="18~24"), col=clr[1],alpha=.2)+
+    geom_smooth(method=lm, aes(x=tract$pct_Pop_18_24,y=ReturnRate,col="18~24"),col=clr[1])+
+  geom_point(aes(x=tract$pct_Pop_65plus,y=ReturnRate, col="65+"), col=clr[2],alpha=.2)+
+    geom_smooth(method=lm, aes(x=tract$pct_Pop_65plus,y=ReturnRate, col="65+"),col=clr[2])+
+  geom_point(aes(x=tract$pct_Pop_25_44,y=ReturnRate, col="25~44"), col="red",alpha=.2)+
+    geom_smooth(method=lm, aes(x=tract$pct_Pop_25_44,y=ReturnRate, col="25~44"),col="red")
+
+
+draw.points <- function(x, y, plot, clr_i){
+  p <- plot+
+    geom_point(aes(x=tract[,x], y= tract[,y])
+               , col = clr[clr_i]
+               , alpha = .2
+               )+
+    ylab("Return Rate(%)")+
+    xlab("%")
+  return (p)
+}
+
+draw.smooth <- function(x, y, plot, clr_i){
+  p<- plot+
+    geom_smooth(
+      aes(x=tract[,x], y= tract[,y])
+      , col = clr[clr_i]
+      , alpha = .2
+      )
+  return (p)
+}
+
+
+p<- ggplot(data=tract)
+p<-draw.points(x="pct_Pop_25_44", y="ReturnRate", plot=p, clr_i=1)
+draw.smooth(x="pct_Pop_25_44", y="ReturnRate", plot=p, clr_i=1)
+
+```
+
+
+
+# option2. hexagonal bins aggregated plot
+
+```{r}
+
+library(hexbin)
+
+hb<-hexbin(tract$Income, tract$ReturnRate)
+plot(hb
+     , xlab = "Income"
+     , ylab = "Return Rate(%)"
+     )
+
+
+plot(hexbin(tract$pct_Pop_65plus, tract$ReturnRate)
+     , xlab = "Income"
+     , ylab = "Return Rate(%)"
+     #, col = "red"
+     )
+
+
+
+```
+
+
+
+# option3. hexagonal bins aggregated plot
+
+```{r}
+
+library(hexbin)
+
+hb2<-hexbin(tract$pct_Pop_18_24, tract$ReturnRate)
+
+p<- plot(hb2
+         , type="n"
+         ,main = "title"
+         )
+
+pushHexport(p$plot.vp)
+
+col <- c("LinGray","BTC","LinOCS","heat.ob","magent","plinrain", terrain.colors, topo.colors, cm.colors)
+
+library(RColorBrewer)
+
+grid.hexagons(hb2
+              #, style = "lattice"
+              ,colramp= rainbow # 
+              )
+
+hb3<- hexbin(tract$pct_Pop_65plus, tract$ReturnRate)
+
+grid.hexagons(hb3
+              , style = "centroids"
+              ,colramp=BTY
+     )
+
+
+
+```
+
+
+
+## back up
+
+### ui _ ages
+```{r}
+column(2
+               , radioButtons("ages","Ages"
+                                    ,c("18~24 years old"="pct_Pop_18_24"
+                                       , "25~44 years old" = "pct_Pop_25_44"
+                                       , "45~64 years old" = "pct_Pop_45_64"
+                                       , "65+ years old" = "pct_Pop_65plus"
+                                       )
+                                    )
+               )
+
+```
+

@@ -1,0 +1,92 @@
+---
+title: "dataPreprocessing"
+author: "Jina"
+date: "October 9, 2015"
+output: html_document
+---
+
+```{r}
+    library(UScensus2010)
+    library(maps)
+    library(mapproj)
+    source("helpers.R")
+    data(county.fips)
+    
+    tract_extracted<-readRDS("tract_extracted.Rda")
+    # <- readRDS("data/counties.rds")
+    newColnames <- c("X", "GIDTR", "State", "State_name", "County", "County_name", "Tract", "Income", "Med_House_val", "ReturnRate", "pct_Males", "pct_Pop_5_17", "pct_Pop_18_24","pct_Pop_25_44", "pct_Pop_45_64", "pct_Pop_65plus", "pct_Hispanic", "pct_NH_White_alone", "pct_NH_Blk_alone", "pct_Not_HS_Grad",  "pct_College", "pct_Prs_Blw_Pov_Lev", "pct_Diff_HU_1yr_Ago", "pct_MrdCple_HHD", "pct_Female_No_HB", "pct_Sngl_Prns_HHD", "avg_Tot_Prns_in_HHD",  "pct_Rel_Under_6", "pct_Vacant_Units", "pct_Renter_Occp_HU", "pct_Single_Unit", "Population", "LAND_AREA", "density")
+    
+colnames(tract_extracted) <- newColnames
+head(tract_extracted)
+
+#saveRDS(tract_extracted,file="tract_newLabel.Rda")
+    
+   tract_extracted <- data.frame(fips, tract_extracted)
+    head(tract_extracted)
+attach(tract_extracted)
+
+        
+    by.county <- data.frame(tapply(tract_extracted$ReturnRate,factor(tract_extracted$St_County), median, na.rm=TRUE))
+    by.county$polyname <- rownames(by.county)
+    head(by.county)
+    colnames(by.county) <- c("ReturnRate","polyname")
+    head(by.county)
+
+    tract_extracted<- merge(county.fips, tract_extracted, by = "fips")
+    head(tract_extracted)
+    
+
+
+
+        trim <- function (x) gsub(" ", "", x)
+    fips<- rep(NA,ncol(tract_extracted))
+    for(i in 1:nrow(tract_extracted)){ 
+      if(nchar(County[i]) == 1) {
+        fips[i] <- trim(paste(State[i],'00',County[i]))
+        #print(fips)
+      }
+      else if(nchar(County[i])==2){
+        fips[i] <- trim(paste(State[i],'0',County[i]))
+        # print(fips)
+      }
+      else if(nchar(County[i])==3){
+        fips[i] <- trim(paste(State[i],County[i]))
+         print(fips)
+      }
+    }
+    
+    
+    head(fips)
+
+    
+    
+    
+    
+       
+countyMapName <- data.frame(map("county")$names)
+order<- row(countyMapName)
+countyMapName<-data.frame(countyMapName,order)
+countyMapName$polyname<-as.character(countyMapName$polyname)
+head(countyMapName)
+
+colnames(countyMapName) <- c("polyname","order")
+head(countyMapName)
+head(by.county)
+
+merge(countyMapName, by.county, by = "polyname", all.x=TRUE)[1:10,]
+
+
+class(countyMapName$polyname)
+class(by.county$polyname)
+all.equal(countyMapName$polyname[1],by.county$polyname[1])
+
+countyMapName$polyname[1]
+length(by.county$polyname)
+
+unique(tract_extracted$polyname)
+tail(tract_extracted[order(tract_extracted$polyname),])
+map    
+
+write.csv(tract_extracted[1:4],"test.csv")
+```
+
