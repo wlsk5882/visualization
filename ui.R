@@ -13,7 +13,7 @@ shinyUI(
          improving mail return rate."
          ,align = 'center'
         )
-      ,p("Individual data points represents average of each tract."
+      ,p("Individual data points represent an average of each tract."
          ,align = 'center'
          )
 

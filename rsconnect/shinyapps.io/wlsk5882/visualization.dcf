@@ -1,6 +1,8 @@
 name: visualization
 account: wlsk5882
 server: shinyapps.io
-bundleId: 293012
+bundleId: 301873
 url: https://wlsk5882.shinyapps.io/visualization
-when: 1445399862.37506
+when: 1446357022.94998
+asMultiple: FALSE
+asStatic: FALSE
